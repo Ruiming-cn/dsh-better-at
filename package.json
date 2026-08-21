@@ -3,6 +3,22 @@
   "version": "0.1.0",
   "description": "Fast @ file/session reference caching for the DeepSeek Harness Web GUI",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ruiming-cn/dsh-better-at.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "at-menu",
+    "file-reference",
+    "session-reference",
+    "performance"
+  ],
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
