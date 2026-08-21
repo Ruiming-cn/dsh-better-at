@@ -1,44 +1,147 @@
 # dsh-better-at
 
-Fast `@` file/session reference caching for the DeepSeek Harness Web GUI.
+> Fast `@` file/session reference caching for the DeepSeek Harness Web GUI.
+
+[![DSH Plugin](https://img.shields.io/badge/DSH-Plugin-1f6feb?style=flat-square)](https://github.com/Ruiming-cn/dsh-better-at)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/Ruiming-cn/dsh-better-at?style=flat-square)](https://github.com/Ruiming-cn/dsh-better-at/releases)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
 `dsh-better-at` keeps the native DSH `@` reference behavior — hierarchical
-workspace file/folder references and DSH session references — while removing
-the per-keystroke host round trips that make the `@` menu feel slow.
+workspace file/folder references and DSH session references — while removing the
+per-keystroke host round trips that make the `@` menu feel slow.
 
-## How it works
+## Features
 
-- A Host `betterAt` Remote exposes:
-  - a bounded workspace file/directory index,
-  - the full DSH session index with canonical session mentions.
-- The client wraps the native `@` source (`trigger='@'`, `name='reference'`)
-  without replacing its `onPick`/`codec`, so file/session mentions keep their
-  original serialized form.
-- Per-session file indices are cached for 30s; the session index is cached for
-  5 minutes. Both use stale-while-revalidate: an expired cache returns the
-  previous snapshot immediately while refreshing in the background.
-- Warm-up starts at session scope birth, so the first `@` normally has its
-  indices already in memory.
-- Typing filters happen locally over the cached index: file/folder hierarchy
-  and session cwd-affinity ranking are preserved.
+- ⚡ **Fast first open**: session-scope warm-up preloads the workspace file index
+  and the DSH session index before the first `@`.
+- ⚡ **Local keystroke filtering**: after the initial load, typing filters and
+  ranks candidates entirely in the browser; no Host request per keystroke.
+- 📁 **Hierarchical file/folder references**: empty/path queries show direct
+  children, bare fuzzy queries search basenames across the whole workspace.
+- 💬 **DSH session references**: full session metadata is indexed locally and
+  ranked by working-directory affinity, matching the native ordering.
+- 🔒 **Native mention compatibility**: the plugin wraps the existing `reference`
+  source and keeps its `onPick`/`codec`, so file and session mentions keep the
+  original serialized form (`@path`, `@"path"`, `@[label](dsh-session:...)`).
+- 🧩 **No Harness source changes**: everything is implemented as an out-of-tree
+  Host Remote + browser client bundle.
 
-## Install (development)
+## How It Works
 
-```sh
+```
+DSH Web @ menu
+      │  candidates() · local filter/rank
+      ▼
+dsh-better-at client cache
+      │  listFiles / listSessions (once per TTL)
+      ▼
+DSH Host betterAt Remote
+      ├── bounded workspace file/directory index
+      └── full DSH session index + canonical mentions
+```
+
+- `betterAt/listFiles` walks the current workspace once and returns a bounded
+  file/directory index. Defaults exclude `.git` and `node_modules` only, matching
+  the native file-reference behavior.
+- `betterAt/listSessions` reads the complete logical session corpus from
+  `ctx.sessionQuery` and generates native `dsh-session:` mentions for the
+  browser.
+- File indices are cached per session for 30 seconds; the session index is
+  cached globally for 5 minutes. Both use stale-while-revalidate: an expired
+  cache returns the previous snapshot immediately while refreshing in the
+  background.
+- The browser wraps the native `@` source (`trigger='@'`, `name='reference'`)
+  without replacing its pick/codec path.
+
+## Requirements
+
+- DeepSeek Harness (DSH) Web with the native `@` reference source available.
+- Node.js for local development/building.
+
+## Installation
+
+From the GitHub release:
+
+```powershell
+dsh plugin --profile web add https://github.com/Ruiming-cn/dsh-better-at/archive/refs/tags/v0.1.0.tar.gz
+```
+
+From a local checkout:
+
+```powershell
 dsh plugin --profile web add .
 ```
 
-Then restart `dsh web`.
+Restart `dsh web` after installation.
 
-## Build
+## Usage
 
-```sh
+Use `@` exactly as usual:
+
+- `@` opens the fast file/folder + session picker.
+- `@src/` browses inside `src/`.
+- `@README` fuzzy-searches file basenames.
+- `@refactor` filters DSH sessions by id, cwd, or label.
+
+After selection, the native composer behavior is preserved: files become atomic
+file references (or editable directory paths), and DSH sessions become native
+session references.
+
+## Configuration
+
+The Host plugin accepts two settings through the profile patch:
+
+```yaml
+# ~/.dsh/profiles/web/cordis.patch.yml
+- id: dsh-better-at
+  config:
+    maxEntries: 10000
+    ignoreDirs:
+      - .git
+      - node_modules
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `maxEntries` | `10000` | Hard cap on indexed workspace entries; the walk reports truncation. |
+| `ignoreDirs` | `['.git', 'node_modules']` | Directory basenames never indexed or traversed. |
+
+## Performance Notes
+
+- The first `@` after a warm session is normally served from memory.
+- Subsequent keystrokes are local `O(N)` string scoring over the cached index
+  (file index is bounded by `maxEntries`; session index is bounded by the local
+  session corpus).
+- The main trade-off is a small freshness window: file changes may take up to
+  30 seconds to appear; session metadata up to 5 minutes. Background refreshes
+  keep the previous snapshot visible while updating.
+
+## Compatibility Notes
+
+- The browser integration intentionally uses the same private
+  `inputTriggers.live.sources` wrapping pattern as `dsh-skill-fuzzy`. If a
+  future Harness version changes that internal structure, the plugin degrades
+  to the native `candidates` path when the Remote is unavailable.
+- Symbolic links are not indexed or traversed, matching the native
+  file-reference search behavior.
+- The current session is excluded from DSH session candidates to avoid
+  self-references, which the native session-reference protocol rejects.
+
+## Development
+
+```powershell
 npm install --legacy-peer-deps
 npm run check
 ```
+
+- `npm run typecheck` — TypeScript strict typecheck.
+- `npm run test` — pure-function unit tests (Node test runner).
+- `npm run build` — builds `lib/index.js` (Host ESM), `lib/client.js`
+  (single-file browser bundle) and `.d.ts` declarations.
 
 `lib/` is committed so profile installs can run without a build step.
 
 ## License
 
-MIT
+[MIT](LICENSE)
