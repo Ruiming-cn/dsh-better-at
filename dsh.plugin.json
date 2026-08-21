@@ -1,0 +1,12 @@
+{
+  "name": "dsh-better-at",
+  "description": "Fast @ file/session reference caching for the DeepSeek Harness Web GUI",
+  "version": "0.1.0",
+  "entry": {
+    "name": "dsh-better-at",
+    "inject": []
+  },
+  "client": {
+    "platform": "web"
+  }
+}

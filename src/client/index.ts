@@ -1,0 +1,100 @@
+/**
+ * dsh-better-at client plugin.
+ *
+ * Mounts the `betterAt` Remote namespace and wraps the native `@` source
+ * (`trigger='@'`, `name='reference'`) so its candidate lookup uses the fast
+ * cached Host indices. The native source's `onPick` and `codec` remain the
+ * implementation of record: file and session references keep the original
+ * occurrence, serialization and clipboard behavior.
+ */
+import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-client-locale/client'
+import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { InputTriggerServiceContract, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
+import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
+import { BETTER_AT_REMOTE } from './remote.ts'
+import { createBetterAtSource, type BetterAtRemoteFace } from './source.ts'
+import { NS, en, zh } from './locales.ts'
+
+/** Required services: trigger registry, Remote mount, session scope, connection reset, locale. */
+export const inject = ['inputTriggers', 'remote', 'sessions', 'connection', 'locale']
+
+/** Marker used to avoid wrapping the same source twice. */
+type WrappedSource = InputTriggerSource & { __dshBetterAtWrapped?: boolean }
+
+/**
+ * Compose the fast @ source wrapper.
+ * @param ctx - client root context.
+ */
+export function apply(ctx: ClientContext): void {
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-better-at: dictionaries')
+
+  let betterAt: BetterAtRemoteFace | undefined
+  ctx.effect(async () => {
+    const dispose = await ctx.remote.$mount(BETTER_AT_REMOTE)
+    betterAt = (ctx.reflect as unknown as { get(name: string): unknown }).get('remote.betterAt') as BetterAtRemoteFace | undefined
+    if (betterAt === undefined) {
+      throw new Error('dsh-better-at: the betterAt Remote namespace did not mount')
+    }
+    return () => {
+      betterAt = undefined
+      void dispose()
+    }
+  }, 'dsh-better-at: remote')
+
+  const inputTriggers = ctx.get('inputTriggers') as InputTriggerServiceContract
+  const t = ctx.locale.bind(NS)
+  const sourceImpl = createBetterAtSource({
+    getRemote: () => betterAt,
+    t,
+    now: () => Date.now(),
+  })
+
+  const wrapReference = (raw: WrappedSource): void => {
+    if (raw === undefined || raw.__dshBetterAtWrapped || typeof raw.candidates !== 'function') return
+    const originalCandidates = raw.candidates
+    const originalWarm = raw.warm
+    raw.candidates = async (session, req) => {
+      if (betterAt === undefined) {
+        return originalCandidates ? originalCandidates.call(raw, session, req) : []
+      }
+      try {
+        return await sourceImpl.candidates(session, req)
+      } catch (error) {
+        console.error('[dsh-better-at] candidates failed, falling back to native:', error)
+        return originalCandidates ? originalCandidates.call(raw, session, req) : []
+      }
+    }
+    if (typeof originalWarm === 'function') {
+      raw.warm = (session) => {
+        try { originalWarm.call(raw, session) } catch (error) { console.error('[dsh-better-at] native warm failed:', error) }
+        sourceImpl.prewarm(session)
+      }
+    } else {
+      raw.warm = (session) => sourceImpl.prewarm(session)
+    }
+    raw.__dshBetterAtWrapped = true
+  }
+
+  // The live source roster lives on the trigger service's private `live.sources`.
+  // We use the same proven pattern as dsh-skill-fuzzy and additionally intercept
+  // registerSource so a later re-registration is also wrapped.
+  const service = inputTriggers as unknown as {
+    live?: { sources?: WrappedSource[] }
+    registerSource: InputTriggerServiceContract['registerSource']
+  }
+  if (Array.isArray(service.live?.sources)) {
+    const reference = service.live.sources.find(source => source.trigger === '@' && source.name === 'reference')
+    if (reference !== undefined) wrapReference(reference)
+  }
+  const registerSource = service.registerSource.bind(service)
+  service.registerSource = (src: InputTriggerSource) => {
+    if (src.trigger === '@' && src.name === 'reference') wrapReference(src as WrappedSource)
+    return registerSource(src)
+  }
+
+  const connection = ctx.get('connection') as ConnectionHandle
+  ctx.on('connection/reset', () => {
+    sourceImpl.invalidateAll()
+  })
+}
