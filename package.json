@@ -7,6 +7,10 @@
     "type": "git",
     "url": "git+https://github.com/Ruiming-cn/dsh-better-at.git"
   },
+  "homepage": "https://github.com/Ruiming-cn/dsh-better-at#readme",
+  "bugs": {
+    "url": "https://github.com/Ruiming-cn/dsh-better-at/issues"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -57,7 +61,7 @@
     }
   },
   "scripts": {
-    "build": "node build.mjs && tsc -p tsconfig.json --emitDeclarationOnly",
+    "build": "node scripts/build.mjs && tsc -p tsconfig.json --emitDeclarationOnly",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "check": "npm run typecheck && npm run test && npm run build"
