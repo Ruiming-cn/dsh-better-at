@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Host-provided `@deepseek-ai/*` peers are declared optional with `*` ranges and
+  pinned to the published `0.1.0-rc.8` family as devDependencies, so `npm ci`
+  and the full `check` suite work from the public registry instead of a
+  harness-linked node_modules.
+- `lib/` bundles are regenerated from a clean install so embedded module paths
+  are deterministic (no machine-specific junction paths).
+
 ## 0.1.0
 
 - Initial release.
