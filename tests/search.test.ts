@@ -61,3 +61,24 @@ test('rankSessions: non-empty query filters and keeps affinity order', () => {
   const all = rankSessions(sessions, 'alpha', '/work/a', 20)
   assert.deepEqual(all.map(row => row.sessionId), ['a'])
 })
+
+test('rankFiles: the result limit is applied', () => {
+  const rows = rankFiles(files, '', 1)
+  assert.deepEqual(rows.map(row => row.relative), ['src'])
+})
+
+test('rankFiles: a directory entry outranks a file with the same name score', () => {
+  const withDir = [...files, { path: '/w/client', relative: 'client', kind: 'directory' }]
+  const rows = rankFiles(withDir, 'client', 20)
+  assert.equal(rows[0].relative, 'client')
+})
+
+test('listDirectoryEntries: a dot fragment reveals hidden entries', () => {
+  const rows = listDirectoryEntries(files, '.git', 20)
+  assert.ok(rows.some(row => row.relative === '.gitignore'))
+})
+
+test('rankSessions: the result limit is applied and ties keep index order', () => {
+  const rows = rankSessions(sessions, '', '/work/a', 2)
+  assert.deepEqual(rows.map(row => row.sessionId), ['a', 'b'])
+})
