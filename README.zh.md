@@ -44,6 +44,12 @@ DSH Host betterAt Remote
 
 ## 安装
 
+从 GitHub 源码一键安装：
+
+```powershell
+dsh plugin --profile web add github:Ruiming-cn/dsh-better-at
+```
+
 从 GitHub Release 安装：
 
 ```powershell

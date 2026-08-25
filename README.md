@@ -61,7 +61,13 @@ DSH Host betterAt Remote
 
 ## Installation
 
-From the GitHub release:
+One command from GitHub source:
+
+```powershell
+dsh plugin --profile web add github:Ruiming-cn/dsh-better-at
+```
+
+From the GitHub release tarball:
 
 ```powershell
 dsh plugin --profile web add https://github.com/Ruiming-cn/dsh-better-at/archive/refs/tags/v0.1.0.tar.gz
