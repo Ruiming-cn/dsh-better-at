@@ -14,8 +14,7 @@ import type { ResolvedConfig } from './types.ts';
 /** Read-only betterAt service exposed to the Web client. */
 export declare class BetterAtRuntime extends TypertRemoteService {
     private readonly config;
-    private readonly context;
-    constructor(ctx: Context, config: ResolvedConfig, context: Context);
+    constructor(ctx: Context, config: ResolvedConfig);
     /** Return the bounded workspace index for the addressed agent. */
     listFiles(agent: Agent, signal: AbortSignal): Promise<BetterAtFileIndex>;
     /** Return the full DSH session index with canonical mentions. */

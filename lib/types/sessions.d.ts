@@ -7,12 +7,13 @@
  * browser bundle.
  */
 import type { Context } from '@deepseek-ai/cordis';
+import type { SessionId } from '@deepseek-ai/dsh-session/types';
 import type { BetterAtSessionIndex } from './contract.ts';
 /** Minimal structural face of `sessionQuery` used by this module (tests stub). */
 export interface SessionQueryLike {
     listSessions(signal?: AbortSignal): Promise<Array<{
         header: {
-            id: string;
+            id: SessionId;
             cwd?: string;
             createdAt: number;
         };

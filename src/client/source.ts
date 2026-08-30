@@ -12,6 +12,9 @@ import type {
   ClientSessionContext,
   InputTriggerCandidate,
 } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
+import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   BetterAtFileEntry,
   BetterAtFileIndex,
@@ -19,17 +22,10 @@ import type {
   BetterAtSessionIndex,
 } from '../contract.ts'
 import { MAX_FILE_CANDIDATES, MAX_SESSION_CANDIDATES, rankFiles, rankSessions } from './search.ts'
+import type {} from './remote.ts'
 
-/** Structural Remote result shape (no generated protocol import in the client bundle). */
-export type BetterAtRemoteResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; error: { code: string; message: string } }
-
-/** The mounted betterAt namespace face. */
-export interface BetterAtRemoteFace {
-  listFiles(agentId: string, signal?: AbortSignal): Promise<BetterAtRemoteResult<BetterAtFileIndex>>
-  listSessions(signal?: AbortSignal): Promise<BetterAtRemoteResult<BetterAtSessionIndex>>
-}
+/** The generated mounted betterAt namespace face. */
+export type BetterAtRemoteFace = ClientRemote['betterAt']
 
 /** Everything the source factory needs from the browser wiring layer. */
 export interface BetterAtSourceDeps {
@@ -68,15 +64,15 @@ interface CacheEntry<T> {
  */
 export function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource {
   const now = deps.now ?? (() => Date.now())
-  const fileCaches = new Map<string, CacheEntry<BetterAtFileIndex>>()
+  const fileCaches = new Map<SessionId, CacheEntry<BetterAtFileIndex>>()
   let sessionCache: CacheEntry<BetterAtSessionIndex> | undefined
 
-  const startFileFetch = (sessionId: string): CacheEntry<BetterAtFileIndex> => {
+  const startFileFetch = (sessionId: SessionId): CacheEntry<BetterAtFileIndex> => {
     const remote = deps.getRemote()
     if (remote === undefined) throw new Error('dsh-better-at: betterAt Remote not mounted')
     const abort = new AbortController()
     const entry: CacheEntry<BetterAtFileIndex> = {
-      promise: remote.listFiles(sessionId, abort.signal).then(result => {
+      promise: remote.listFiles(sessionId, abort.signal).then((result: RemoteResult<BetterAtFileIndex>) => {
         if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
         return result.value
       }),
@@ -85,7 +81,7 @@ export function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource {
     }
     fileCaches.set(sessionId, entry)
     if (fileCaches.size > FILE_CACHE_MAX_SESSIONS) {
-      const oldest = fileCaches.keys().next().value as string | undefined
+      const oldest = fileCaches.keys().next().value as SessionId | undefined
       if (oldest !== undefined) {
         const old = fileCaches.get(oldest)
         old?.abort.abort()
@@ -99,7 +95,7 @@ export function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource {
     return entry
   }
 
-  const getFileIndex = (sessionId: string): Promise<BetterAtFileIndex> => {
+  const getFileIndex = (sessionId: SessionId): Promise<BetterAtFileIndex> => {
     const existing = fileCaches.get(sessionId)
     if (existing !== undefined) {
       if (existing.settled !== undefined) {
@@ -118,7 +114,7 @@ export function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource {
     if (remote === undefined) throw new Error('dsh-better-at: betterAt Remote not mounted')
     const abort = new AbortController()
     const entry: CacheEntry<BetterAtSessionIndex> = {
-      promise: remote.listSessions(abort.signal).then(result => {
+      promise: remote.listSessions(abort.signal).then((result: RemoteResult<BetterAtSessionIndex>) => {
         if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
         return result.value
       }),

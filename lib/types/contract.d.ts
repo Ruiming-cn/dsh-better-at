@@ -9,6 +9,7 @@
  */
 import { z } from 'zod';
 import type { InvocationDescriptor } from '@deepseek-ai/dsh-typert-protocol';
+import type { SessionId } from '@deepseek-ai/dsh-session/types';
 /** One indexed workspace entry (a file or a directory), with display paths. */
 export interface BetterAtFileEntry {
     readonly path: string;
@@ -23,7 +24,7 @@ export interface BetterAtFileIndex {
 }
 /** One DSH session candidate with a canonical model-facing mention. */
 export interface BetterAtSessionEntry {
-    readonly sessionId: string;
+    readonly sessionId: SessionId;
     readonly label: string;
     readonly cwd?: string;
     readonly createdAt: number;

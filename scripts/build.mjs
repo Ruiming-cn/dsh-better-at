@@ -10,6 +10,7 @@ import { build } from 'esbuild'
 import { mkdirSync } from 'node:fs'
 
 mkdirSync('lib', { recursive: true })
+mkdirSync('lib/types', { recursive: true })
 
 const dshExternal = ['@deepseek-ai/cordis', '@deepseek-ai/dsh-*']
 
@@ -23,6 +24,16 @@ await build({
   sourcemap: true,
   external: dshExternal,
   logLevel: 'info',
+})
+
+await build({
+  entryPoints: ['src/types.ts'],
+  outfile: 'lib/types/types.js',
+  bundle: true,
+  format: 'esm',
+  platform: 'neutral',
+  target: ['es2022'],
+  logLevel: 'silent',
 })
 
 await build({

@@ -1,4 +1,4 @@
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
+import type { Context as ClientContext } from '@deepseek-ai/cordis';
 /** Required services: trigger registry, Remote mount, session scope, connection reset, locale. */
 export declare const inject: string[];
 /**

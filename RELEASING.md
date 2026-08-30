@@ -15,15 +15,15 @@ npm run check
 npm pack
 
 # 3. Tag and create the GitHub release with the tarball asset
-gh release create v0.1.0 \
+gh release create v0.2.0 \
   --repo Ruiming-cn/dsh-better-at \
-  --title "dsh-better-at v0.1.0" \
+  --title "dsh-better-at v0.2.0" \
   --notes "See CHANGELOG.md" \
-  ./dsh-better-at-0.1.0.tgz
+  ./dsh-better-at-0.2.0.tgz
 
 # 4. Verify repository metadata
 gh repo view Ruiming-cn/dsh-better-at --json description,repositoryTopics
-gh release view v0.1.0 --repo Ruiming-cn/dsh-better-at
+gh release view v0.2.0 --repo Ruiming-cn/dsh-better-at
 ```
 
 ## Repository metadata

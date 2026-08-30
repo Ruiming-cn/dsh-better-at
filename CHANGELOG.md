@@ -1,13 +1,15 @@
 # Changelog
 
+## 0.2.0 - 2026-08-30
+
+- Migrated the Host Remote to the Alpha.2 Typert `./typert` and `./remote` artifacts.
+- Removed the obsolete `dsh-client-runtime` dependency and switched to current Connection, Input Trigger, Locale, and SessionId contracts.
+- Added lifecycle restoration for the native `@` source wrapper across unload and re-registration.
+- Published the generated Typert descriptors and the public `./types` export.
+
 ## Unreleased
 
-- Host-provided `@deepseek-ai/*` peers are declared optional with `*` ranges and
-  pinned to the published `0.1.0-rc.8` family as devDependencies, so `npm ci`
-  and the full `check` suite work from the public registry instead of a
-  harness-linked node_modules.
-- `lib/` bundles are regenerated from a clean install so embedded module paths
-  are deterministic (no machine-specific junction paths).
+No unreleased changes.
 
 ## 0.1.0
 

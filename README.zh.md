@@ -3,6 +3,7 @@
 > 为 DeepSeek Harness Web 输入框 `@` 功能提供快速引用加速。
 
 [![DSH Plugin](https://img.shields.io/badge/DSH-Plugin-1f6feb?style=flat-square)](https://github.com/Ruiming-cn/dsh-better-at)
+[![Awesome DSH Plugin](https://img.shields.io/badge/Awesome-DSH_Plugin-ff69b4?style=flat-square)](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/Ruiming-cn/dsh-better-at?style=flat-square)](https://github.com/Ruiming-cn/dsh-better-at/releases)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -53,7 +54,7 @@ dsh plugin --profile web add github:Ruiming-cn/dsh-better-at
 从 GitHub Release 安装：
 
 ```powershell
-dsh plugin --profile web add https://github.com/Ruiming-cn/dsh-better-at/archive/refs/tags/v0.1.0.tar.gz
+dsh plugin --profile web add https://github.com/Ruiming-cn/dsh-better-at/archive/refs/tags/v0.2.0.tar.gz
 ```
 
 从本地仓库安装：

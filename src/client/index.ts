@@ -8,16 +8,16 @@
  * occurrence, serialization and clipboard behavior.
  */
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { InputTriggerServiceContract, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
-import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
 import { BETTER_AT_REMOTE } from './remote.ts'
 import { createBetterAtSource, type BetterAtRemoteFace } from './source.ts'
 import { NS, en, zh } from './locales.ts'
 
 /** Required services: trigger registry, Remote mount, session scope, connection reset, locale. */
-export const inject = ['inputTriggers', 'remote', 'sessions', 'connection', 'locale']
+export const inject = ['inputTriggers', 'remote', 'connection', 'locale']
 
 /** Marker used to avoid wrapping the same source twice. */
 type WrappedSource = InputTriggerSource & { __dshBetterAtWrapped?: boolean }
@@ -50,6 +50,12 @@ export function apply(ctx: ClientContext): void {
     now: () => Date.now(),
   })
 
+  const wrapped = new Set<WrappedSource>()
+  const restore = new Map<WrappedSource, {
+    candidates: WrappedSource['candidates']
+    warm: WrappedSource['warm']
+  }>()
+
   const wrapReference = (raw: WrappedSource): void => {
     if (raw === undefined || raw.__dshBetterAtWrapped || typeof raw.candidates !== 'function') return
     const originalCandidates = raw.candidates
@@ -74,6 +80,8 @@ export function apply(ctx: ClientContext): void {
       raw.warm = (session) => sourceImpl.prewarm(session)
     }
     raw.__dshBetterAtWrapped = true
+    wrapped.add(raw)
+    restore.set(raw, { candidates: originalCandidates, warm: originalWarm })
   }
 
   // The live source roster lives on the trigger service's private `live.sources`.
@@ -93,7 +101,19 @@ export function apply(ctx: ClientContext): void {
     return registerSource(src)
   }
 
-  const connection = ctx.get('connection') as ConnectionHandle
+  ctx.effect(() => () => {
+    service.registerSource = registerSource
+    for (const source of wrapped) {
+      const original = restore.get(source)
+      if (original === undefined) continue
+      source.candidates = original.candidates
+      source.warm = original.warm
+      delete source.__dshBetterAtWrapped
+    }
+    wrapped.clear()
+    restore.clear()
+  }, 'dsh-better-at: source wrapper')
+
   ctx.on('connection/reset', () => {
     sourceImpl.invalidateAll()
   })

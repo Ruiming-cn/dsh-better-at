@@ -19,7 +19,6 @@ export class BetterAtRuntime extends TypertRemoteService {
   constructor(
     ctx: Context,
     private readonly config: ResolvedConfig,
-    private readonly context: Context,
   ) {
     super(ctx, 'betterAt')
   }
@@ -38,6 +37,6 @@ export class BetterAtRuntime extends TypertRemoteService {
   /** Return the full DSH session index with canonical mentions. */
   @Remote
   async listSessions(signal: AbortSignal): Promise<BetterAtSessionIndex> {
-    return buildSessionIndex(this.context, signal)
+    return buildSessionIndex(this.ctx, signal)
   }
 }

@@ -8,23 +8,9 @@
  * its `onPick`/`codec` untouched.
  */
 import type { CandidateRequest, ClientSessionContext, InputTriggerCandidate } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
-import type { BetterAtFileIndex, BetterAtSessionIndex } from '../contract.ts';
-/** Structural Remote result shape (no generated protocol import in the client bundle). */
-export type BetterAtRemoteResult<T> = {
-    ok: true;
-    value: T;
-} | {
-    ok: false;
-    error: {
-        code: string;
-        message: string;
-    };
-};
-/** The mounted betterAt namespace face. */
-export interface BetterAtRemoteFace {
-    listFiles(agentId: string, signal?: AbortSignal): Promise<BetterAtRemoteResult<BetterAtFileIndex>>;
-    listSessions(signal?: AbortSignal): Promise<BetterAtRemoteResult<BetterAtSessionIndex>>;
-}
+import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client';
+/** The generated mounted betterAt namespace face. */
+export type BetterAtRemoteFace = ClientRemote['betterAt'];
 /** Everything the source factory needs from the browser wiring layer. */
 export interface BetterAtSourceDeps {
     /** Live Remote accessor (the namespace mounts asynchronously). */

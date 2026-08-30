@@ -9,3 +9,4 @@ export interface ResolvedConfig {
     /** Directory basenames the index walk skips entirely. */
     readonly ignoreDirs: readonly string[];
 }
+export type { BetterAtFileEntry, BetterAtFileIndex, BetterAtSessionEntry, BetterAtSessionIndex, } from './contract.ts';

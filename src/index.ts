@@ -1,8 +1,8 @@
 /**
  * dsh-better-at host plugin entry.
  *
- * Mounts the `betterAt` Typert Remote service (workspace index + session index)
- * and registers its strict Typert manifest. The plugin does not modify the
+ * Mounts the `betterAt` Typert Remote service (workspace index + session index).
+ * The plugin does not modify the
  * Harness, does not read mentioned file contents, and does not replace the
  * native @ source — the browser half wraps the existing `reference` source's
  * candidate path only.
@@ -10,21 +10,27 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 // Type-only: brings the ctx.typert Context merge into this program.
-import type {} from '@deepseek-ai/dsh-typert-registry'
-// Type-only: brings ctx.agents and Agent types.
-import type {} from '@deepseek-ai/dsh-agent'
 // Type-only: brings ctx.sessionQuery.
 import type {} from '@deepseek-ai/dsh-session-query'
 import { BetterAtRuntime } from './runtime.ts'
-import { TYPERT_MANIFEST } from './typert.ts'
 import { DEFAULT_IGNORE_DIRS } from './files.ts'
 import type { ResolvedConfig } from './types.ts'
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** The Host Remote service backing the local @ reference index. */
+    betterAt: BetterAtRuntime
+  }
+}
 
 /** Cordis plugin name (Loader entry and client bundle id). */
 export const name = 'dsh-better-at'
 
-/** Services required before load: Typert registry, agent registry, session query. */
-export const inject = ['typert', 'agents', 'sessionQuery']
+export { BetterAtRuntime } from './runtime.ts'
+export type * from './contract.ts'
+
+/** Services required before load: the session index query service. */
+export const inject = ['sessionQuery']
 
 export { DEFAULT_IGNORE_DIRS } from './files.ts'
 
@@ -43,16 +49,11 @@ export const Config = z.object({
 })
 
 /**
- * Mount the betterAt service and register its strict manifest.
+ * Mount the betterAt service.
  * @param ctx - host cordis context.
  * @param config - validated plugin configuration (schema defaults applied).
  */
 export function apply(ctx: Context, config?: Config): void {
   const resolved: ResolvedConfig = Config(config ?? {})
-  const runtime = new BetterAtRuntime(ctx, resolved, ctx)
-  void runtime
-  ctx.effect(() => {
-    const dispose = ctx.typert.register(TYPERT_MANIFEST)
-    return () => { void dispose() }
-  }, 'dsh-better-at: typert manifest')
+  ctx.plugin(BetterAtRuntime, resolved)
 }
