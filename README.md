@@ -20,6 +20,9 @@ per-keystroke host round trips that make the `@` menu feel slow.
   ranks candidates entirely in the browser; no Host request per keystroke.
 - 📁 **Hierarchical file/folder references**: empty/path queries show direct
   children, bare fuzzy queries search basenames across the whole workspace.
+- 🎛️ **Native-shaped rows**: file and folder icons, folder rows that drill down
+  with Tab, a parent-directory subtitle for nested entries, and session rows
+  showing their working directory and age.
 - 💬 **DSH session references**: full session metadata is indexed locally and
   ranked by working-directory affinity, matching the native ordering.
 - 🔒 **Native mention compatibility**: the plugin wraps the existing `reference`
@@ -54,24 +57,32 @@ DSH Host betterAt Remote
   background.
 - The browser wraps the native `@` source (`trigger='@'`, `name='reference'`)
   without replacing its pick/codec path.
+- Each index snapshot is prepared once for keystroke-time use: basenames,
+  lower-cased names, hidden flags, and parent directories are computed when the
+  snapshot arrives, and ranking keeps only the best rows instead of sorting
+  every match.
+- The Host Remote is a strict Typert contribution: `lib/typert.host.js` carries
+  the descriptors the Gateway validates, and the browser mounts the same
+  descriptors from `lib/typert.remote-client.js`.
 
 ## Requirements
 
-- DeepSeek Harness (DSH) Web with the native `@` reference source available.
-- Node.js for local development/building.
+- DeepSeek Harness (DSH) Web 0.2.2-rc.5 or newer with the native `@` reference
+  source available.
+- Node.js ≥ 22 for local development/building.
 
 ## Installation
 
-One command from GitHub source:
+From the prebuilt release tarball (no build step):
+
+```powershell
+dsh plugin --profile web add https://github.com/Ruiming-cn/dsh-better-at/releases/download/v0.2.1/dsh-better-at-0.2.1.tgz
+```
+
+From GitHub source (`lib/` is committed, so no build runs on install):
 
 ```powershell
 dsh plugin --profile web add github:Ruiming-cn/dsh-better-at
-```
-
-From the GitHub release tarball:
-
-```powershell
-dsh plugin --profile web add https://github.com/Ruiming-cn/dsh-better-at/archive/refs/tags/v0.2.0.tar.gz
 ```
 
 From a local checkout:
@@ -87,7 +98,8 @@ Restart `dsh web` after installation.
 Use `@` exactly as usual:
 
 - `@` opens the fast file/folder + session picker.
-- `@src/` browses inside `src/`.
+- `@src/` browses inside `src/`; Tab on a folder row descends instead of
+  inserting it.
 - `@README` fuzzy-searches file basenames.
 - `@refactor` filters DSH sessions by id, cwd, or label.
 
@@ -117,15 +129,22 @@ The Host plugin accepts two settings through the profile patch:
 ## Performance Notes
 
 - The first `@` after a warm session is normally served from memory.
-- Subsequent keystrokes are local `O(N)` string scoring over the cached index
-  (file index is bounded by `maxEntries`; session index is bounded by the local
-  session corpus).
+- Each keystroke scores prepared rows: the per-snapshot projection keeps the
+  lower-cased basename, hidden flag, and parent directory, so no path string is
+  re-split or re-lowercased while typing, and ranking keeps only the best rows
+  instead of sorting every match.
+- The browser bundle ships no general validation library; the two wire shapes
+  are checked by hand-written boundary parsers.
 - The main trade-off is a small freshness window: file changes may take up to
   30 seconds to appear; session metadata up to 5 minutes. Background refreshes
   keep the previous snapshot visible while updating.
 
 ## Compatibility Notes
 
+- Verified against DeepSeek Harness 0.2.2-rc.5. The Host contribution uses the
+  0.2.x strict Typert codec form (`create()` factory); an older Harness that
+  expects the 0.1.x `schema` field will not register the Remote, and the plugin
+  then falls back to the native `candidates` path.
 - The browser integration intentionally uses the same private
   `inputTriggers.live.sources` wrapping pattern as `dsh-skill-fuzzy`. If a
   future Harness version changes that internal structure, the plugin degrades
@@ -138,14 +157,17 @@ The Host plugin accepts two settings through the profile patch:
 ## Development
 
 ```powershell
-npm install --legacy-peer-deps
+npm install
 npm run check
 ```
 
-- `npm run typecheck` — TypeScript strict typecheck.
-- `npm run test` — pure-function unit tests (Node test runner).
+- `npm run typecheck` — TypeScript strict typecheck against the installed DSH
+  package types.
+- `npm run test` — pure-function unit tests (Node test runner), including a
+  guard that the committed Typert artifacts match `src/contract.ts`.
 - `npm run build` — builds `lib/index.js` (Host ESM), `lib/client.js`
-  (single-file browser bundle) and `.d.ts` declarations.
+  (single-file browser bundle), `lib/typert.host.js` +
+  `lib/typert.remote-client.js` (Typert manifests) and `.d.ts` declarations.
 
 `lib/` is committed so profile installs can run without a build step.
 

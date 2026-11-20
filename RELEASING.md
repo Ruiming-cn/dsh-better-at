@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - `gh` CLI authenticated with repository write access.
-- Node.js ≥ 22.6 (tests run with `--experimental-strip-types`).
+- Node.js ≥ 22 (tests run with `--experimental-strip-types`).
 
 ## Steps
 
@@ -11,19 +11,19 @@
 # 1. Build and verify
 npm run check
 
-# 2. Create the npm tarball
+# 2. Create the prebuilt tarball (its name carries the version)
 npm pack
 
 # 3. Tag and create the GitHub release with the tarball asset
-gh release create v0.2.0 \
+gh release create v0.2.1 \
   --repo Ruiming-cn/dsh-better-at \
-  --title "dsh-better-at v0.2.0" \
+  --title "dsh-better-at v0.2.1" \
   --notes "See CHANGELOG.md" \
-  ./dsh-better-at-0.2.0.tgz
+  ./dsh-better-at-0.2.1.tgz
 
-# 4. Verify repository metadata
+# 4. Verify repository metadata and the asset
 gh repo view Ruiming-cn/dsh-better-at --json description,repositoryTopics
-gh release view v0.2.0 --repo Ruiming-cn/dsh-better-at
+gh release view v0.2.1 --repo Ruiming-cn/dsh-better-at --json assets
 ```
 
 ## Repository metadata
@@ -32,4 +32,6 @@ Keep the following in sync before each release:
 
 - `package.json` description, keywords, repository/homepage/bugs fields.
 - `README.md` (English) and `README.zh.md` (Chinese).
-- `CHANGELOG.md`.
+- `CHANGELOG.md`, plus the `locale/*.json` Plugin Manager copy.
+- The release tarball is the install path storefronts should offer, so re-check
+  its download URL after every cut.

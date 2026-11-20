@@ -31,13 +31,13 @@ export interface Config {
     ignoreDirs: string[];
 }
 /** Configuration schema with deployment-tunable bounds. */
-export declare const Config: z<Schemastery.ObjectS<{
-    maxEntries: z<number, number>;
-    ignoreDirs: z<string[], string[]>;
-}>, Schemastery.ObjectT<{
-    maxEntries: z<number, number>;
-    ignoreDirs: z<string[], string[]>;
-}>>;
+export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+    maxEntries: z<number, number, "defined">;
+    ignoreDirs: z<string[], string[], "defined">;
+}>>, Schemastery.ObjectT<NoInfer<{
+    maxEntries: z<number, number, "defined">;
+    ignoreDirs: z<string[], string[], "defined">;
+}>>, "plain">;
 /**
  * Mount the betterAt service.
  * @param ctx - host cordis context.

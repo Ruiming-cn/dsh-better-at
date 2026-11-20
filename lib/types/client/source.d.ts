@@ -3,12 +3,18 @@
  * cache, stale-while-revalidate, and candidate row projection that matches the
  * native `reference` source's value shape exactly.
  *
+ * The file index is prepared once per snapshot (`prepareFiles`), so keystrokes
+ * only score prepared rows. Rows mirror the native source: a bare name, a
+ * parent directory when nested, an icon, and `drill` for folders so Tab descends
+ * instead of settling the folder.
+ *
  * This module never registers its own input-trigger source; the client entry
  * wraps the existing native `reference` source's `candidates`/`warm` and keeps
  * its `onPick`/`codec` untouched.
  */
 import type { CandidateRequest, ClientSessionContext, InputTriggerCandidate } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client';
+import type { BetterAtKey } from './locales.ts';
 /** The generated mounted betterAt namespace face. */
 export type BetterAtRemoteFace = ClientRemote['betterAt'];
 /** Everything the source factory needs from the browser wiring layer. */
@@ -16,7 +22,7 @@ export interface BetterAtSourceDeps {
     /** Live Remote accessor (the namespace mounts asynchronously). */
     getRemote(): BetterAtRemoteFace | undefined;
     /** Locale translation function for candidate rows. */
-    t(key: string): string;
+    t(key: BetterAtKey, params?: Record<string, string | number>): string;
     /** Monotonic clock for cache freshness (default Date.now). */
     now?(): number;
 }
@@ -31,3 +37,10 @@ export interface BetterAtSource {
  * @param deps - remote accessor, locale, and clock.
  */
 export declare function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource;
+/**
+ * Render one session age the way the native session rows do.
+ * @param createdAt - session creation time in epoch milliseconds.
+ * @param now - current time in epoch milliseconds.
+ * @param t - the plugin dictionary.
+ */
+export declare function formatAge(createdAt: number, now: number, t: (key: BetterAtKey, params?: Record<string, string | number>) => string): string;

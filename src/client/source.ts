@@ -3,6 +3,11 @@
  * cache, stale-while-revalidate, and candidate row projection that matches the
  * native `reference` source's value shape exactly.
  *
+ * The file index is prepared once per snapshot (`prepareFiles`), so keystrokes
+ * only score prepared rows. Rows mirror the native source: a bare name, a
+ * parent directory when nested, an icon, and `drill` for folders so Tab descends
+ * instead of settling the folder.
+ *
  * This module never registers its own input-trigger source; the client entry
  * wraps the existing native `reference` source's `candidates`/`warm` and keeps
  * its `onPick`/`codec` untouched.
@@ -16,12 +21,19 @@ import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type {
-  BetterAtFileEntry,
   BetterAtFileIndex,
   BetterAtSessionEntry,
   BetterAtSessionIndex,
 } from '../contract.ts'
-import { MAX_FILE_CANDIDATES, MAX_SESSION_CANDIDATES, rankFiles, rankSessions } from './search.ts'
+import type { BetterAtKey } from './locales.ts'
+import {
+  MAX_FILE_CANDIDATES,
+  MAX_SESSION_CANDIDATES,
+  prepareFiles,
+  rankFiles,
+  rankSessions,
+  type PreparedFile,
+} from './search.ts'
 import type {} from './remote.ts'
 
 /** The generated mounted betterAt namespace face. */
@@ -32,7 +44,7 @@ export interface BetterAtSourceDeps {
   /** Live Remote accessor (the namespace mounts asynchronously). */
   getRemote(): BetterAtRemoteFace | undefined
   /** Locale translation function for candidate rows. */
-  t(key: string): string
+  t(key: BetterAtKey, params?: Record<string, string | number>): string
   /** Monotonic clock for cache freshness (default Date.now). */
   now?(): number
 }
@@ -44,12 +56,24 @@ export interface BetterAtSource {
   invalidateAll(): void
 }
 
+/** One file-index snapshot plus its keystroke-ready projection. */
+interface FileSnapshot {
+  readonly index: BetterAtFileIndex
+  readonly files: readonly PreparedFile[]
+}
+
 /** File index cache TTL per session. */
 const FILE_TTL_MS = 30_000
 /** Session index cache TTL (global; session metadata churns slowly). */
 const SESSION_TTL_MS = 300_000
 /** Upper bound on per-session file cache entries kept in memory. */
 const FILE_CACHE_MAX_SESSIONS = 100
+/** Age bucket thresholds for session rows, mirroring the native row copy. */
+const MINUTE_MS = 60_000
+const HOUR_MS = 60 * MINUTE_MS
+const DAY_MS = 24 * HOUR_MS
+const MONTH_MS = 30 * DAY_MS
+const YEAR_MS = 365 * DAY_MS
 
 interface CacheEntry<T> {
   promise: Promise<T>
@@ -64,17 +88,17 @@ interface CacheEntry<T> {
  */
 export function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource {
   const now = deps.now ?? (() => Date.now())
-  const fileCaches = new Map<SessionId, CacheEntry<BetterAtFileIndex>>()
+  const fileCaches = new Map<SessionId, CacheEntry<FileSnapshot>>()
   let sessionCache: CacheEntry<BetterAtSessionIndex> | undefined
 
-  const startFileFetch = (sessionId: SessionId): CacheEntry<BetterAtFileIndex> => {
+  const startFileFetch = (sessionId: SessionId): CacheEntry<FileSnapshot> => {
     const remote = deps.getRemote()
     if (remote === undefined) throw new Error('dsh-better-at: betterAt Remote not mounted')
     const abort = new AbortController()
-    const entry: CacheEntry<BetterAtFileIndex> = {
+    const entry: CacheEntry<FileSnapshot> = {
       promise: remote.listFiles(sessionId, abort.signal).then((result: RemoteResult<BetterAtFileIndex>) => {
         if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
-        return result.value
+        return { index: result.value, files: prepareFiles(result.value.entries) }
       }),
       abort,
       at: now(),
@@ -95,7 +119,7 @@ export function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource {
     return entry
   }
 
-  const getFileIndex = (sessionId: SessionId): Promise<BetterAtFileIndex> => {
+  const getFileIndex = (sessionId: SessionId): Promise<FileSnapshot> => {
     const existing = fileCaches.get(sessionId)
     if (existing !== undefined) {
       if (existing.settled !== undefined) {
@@ -146,21 +170,22 @@ export function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource {
     session: ClientSessionContext,
     req: CandidateRequest,
   ): Promise<readonly InputTriggerCandidate[]> => {
-    const [fileIndex, sessionIndex] = await Promise.all([
+    const [snapshot, sessionIndex] = await Promise.all([
       getFileIndex(session.sessionId),
       getSessionIndex(),
     ])
     if (req.signal.aborted) return []
-    const fileRows = rankFiles(fileIndex.entries, req.query, MAX_FILE_CANDIDATES)
+    const at = now()
+    const fileRows = rankFiles(snapshot.files, req.query, MAX_FILE_CANDIDATES)
       .flatMap(entry => fileRow(entry, req.quoted === true, deps.t))
     const sessionRows = req.quoted === true
       ? []
       : rankSessions(
         sessionIndex.entries.filter(entry => entry.sessionId !== session.sessionId),
         req.query,
-        fileIndex.root,
+        snapshot.index.root,
         MAX_SESSION_CANDIDATES,
-      ).map(entry => sessionRow(entry, deps.t))
+      ).map(entry => sessionRow(entry, snapshot.index.root, at, deps.t))
     return [...fileRows, ...sessionRows]
   }
 
@@ -183,52 +208,68 @@ export function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource {
   return { candidates, prewarm, invalidateAll }
 }
 
+/** Project one prepared entry as a native-shaped file or folder row. */
 function fileRow(
-  entry: BetterAtFileEntry,
+  file: PreparedFile,
   preserveQuote: boolean,
-  t: (key: string) => string,
+  t: (key: BetterAtKey, params?: Record<string, string | number>) => string,
 ): readonly InputTriggerCandidate[] {
-  const mention = formatFileMention(entry.relative, entry.kind, preserveQuote)
+  const mention = formatFileMention(file.entry.relative, file.entry.kind, preserveQuote)
   if (mention === undefined) return []
-  const name = basenameOf(entry.relative)
-  const isDir = entry.kind === 'directory'
-  const value = {
-    kind: 'file',
-    fileKind: entry.kind,
-    label: name,
-    mention,
-  }
   return [{
-    name: `${t(isDir ? 'candidate.folder' : 'candidate.file')} · ${name}${isDir ? '/' : ''}`,
-    description: entry.relative,
+    name: file.isDirectory ? `${file.name}/` : file.name,
+    ...(file.parent === '' ? {} : { description: file.parent }),
+    icon: file.isDirectory ? 'folder' : 'file',
     section: t('section.files'),
-    value: JSON.stringify(value),
+    ...(file.isDirectory ? { drill: true } : {}),
+    value: JSON.stringify({ kind: 'file', fileKind: file.entry.kind, label: file.name, mention }),
   }]
 }
 
-function sessionRow(entry: BetterAtSessionEntry, t: (key: string) => string): InputTriggerCandidate {
-  const location = entry.cwd ?? t('candidate.noCwd')
-  const description = `${entry.label === entry.sessionId ? '' : `${entry.sessionId} · `}${location} · ${new Date(entry.createdAt).toISOString()}`
+/** Project one session as a native-shaped session row. */
+function sessionRow(
+  entry: BetterAtSessionEntry,
+  root: string,
+  now: number,
+  t: (key: BetterAtKey, params?: Record<string, string | number>) => string,
+): InputTriggerCandidate {
+  const age = formatAge(entry.createdAt, now, t)
+  const location = entry.cwd === undefined
+    ? t('candidate.noCwd')
+    : entry.cwd === root ? undefined : entry.cwd
   return {
-    name: `${t('candidate.session')} · ${entry.label}`,
-    description,
+    name: entry.label,
+    description: location === undefined ? age : `${location} · ${age}`,
+    icon: 'session',
     section: t('section.sessions'),
-    value: JSON.stringify({
-      kind: 'session',
-      label: entry.label,
-      mention: entry.mention,
-    }),
+    value: JSON.stringify({ kind: 'session', label: entry.label, mention: entry.mention }),
   }
 }
 
-function basenameOf(relative: string): string {
-  return relative.replaceAll('\\', '/').split('/').at(-1) ?? relative
+/**
+ * Render one session age the way the native session rows do.
+ * @param createdAt - session creation time in epoch milliseconds.
+ * @param now - current time in epoch milliseconds.
+ * @param t - the plugin dictionary.
+ */
+export function formatAge(
+  createdAt: number,
+  now: number,
+  t: (key: BetterAtKey, params?: Record<string, string | number>) => string,
+): string {
+  const elapsed = Math.max(0, now - createdAt)
+  if (elapsed < MINUTE_MS) return t('time.now')
+  if (elapsed < HOUR_MS) return t('time.minutes', { n: Math.floor(elapsed / MINUTE_MS) })
+  if (elapsed < DAY_MS) return t('time.hours', { n: Math.floor(elapsed / HOUR_MS) })
+  if (elapsed < MONTH_MS) return t('time.days', { n: Math.floor(elapsed / DAY_MS) })
+  if (elapsed < YEAR_MS) return t('time.months', { n: Math.floor(elapsed / MONTH_MS) })
+  return t('time.years', { n: Math.floor(elapsed / YEAR_MS) })
 }
 
 /** Mirror of @deepseek-ai/dsh-file-reference grammar's `formatFileMention`. */
 function formatFileMention(
   path: string,
-  kind: BetterAtFileEntry['kind'],
+  kind: 'file' | 'directory',
   preserveQuote: boolean,
 ): string | undefined {
   const text = kind === 'directory' ? `${path}/` : path

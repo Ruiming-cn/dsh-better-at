@@ -37,6 +37,28 @@ await build({
 })
 
 await build({
+  entryPoints: ['src/typert.host.ts'],
+  outfile: 'lib/typert.host.js',
+  bundle: true,
+  format: 'esm',
+  platform: 'node',
+  target: ['node22'],
+  external: dshExternal,
+  logLevel: 'info',
+})
+
+await build({
+  entryPoints: ['src/typert.remote-client.ts'],
+  outfile: 'lib/typert.remote-client.js',
+  bundle: true,
+  format: 'esm',
+  platform: 'neutral',
+  target: ['es2022'],
+  external: dshExternal,
+  logLevel: 'info',
+})
+
+await build({
   entryPoints: ['src/client/index.ts'],
   outfile: 'lib/client.js',
   bundle: true,

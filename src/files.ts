@@ -1,12 +1,13 @@
 /**
  * Workspace file/directory indexing over node:fs.
  *
- * The walk streams directories one entry at a time, follows file and directory
- * symlinks without re-entering an ancestor target, skips configured ignore
- * directories by basename, and hard-stops at the configured entry cap with an
- * honest `truncated` flag. It never reads file contents.
+ * The walk streams directories one entry at a time, skips configured ignore
+ * directories by basename, skips symbolic links (matching the native
+ * WorkspaceFileSearch, which neither offers nor traverses them), and hard-stops
+ * at the configured entry cap with an honest `truncated` flag. It never reads
+ * file contents.
  */
-import { opendir, realpath } from 'node:fs/promises'
+import { opendir } from 'node:fs/promises'
 import type { Dir, Dirent } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import type { BetterAtFileEntry } from './contract.ts'
@@ -31,12 +32,6 @@ export interface WorkspaceIndex {
 
 /** Directory opener seam used by the real filesystem and deterministic tests. */
 export type OpenWorkspaceDirectory = (path: string) => Promise<Dir>
-
-interface DirectoryTask {
-  readonly path: string
-  readonly canonical: string
-  readonly ancestors: ReadonlySet<string>
-}
 
 function raceAbort<T>(operation: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
   if (signal === undefined) return operation
@@ -99,22 +94,11 @@ export async function indexWorkspace(
 ): Promise<WorkspaceIndex> {
   const ignoreDirs = new Set(options.ignoreDirs)
   const entries: BetterAtFileEntry[] = []
-  let rootCanonical: string
-  try {
-    rootCanonical = await raceAbort(realpath(root), signal)
-  } catch (error: unknown) {
-    signal?.throwIfAborted()
-    throw new Error(`dsh-better-at: cannot list "${root}": ${messageOf(error)}`)
-  }
-  const queue: DirectoryTask[] = [{ path: root, canonical: rootCanonical, ancestors: new Set() }]
+  const queue: string[] = [root]
   let truncated = false
   while (queue.length > 0) {
     signal?.throwIfAborted()
-    const task = queue.shift() as DirectoryTask
-    const dir = task.path
-    if (task.ancestors.has(task.canonical)) continue
-    const childAncestors = new Set(task.ancestors)
-    childAncestors.add(task.canonical)
+    const dir = queue.shift() as string
     let handle: Dir
     try {
       handle = await raceAbort(openDirectory(dir), signal)
@@ -139,21 +123,15 @@ export async function indexWorkspace(
           truncated = true
           break
         }
-        const child = join(dir, dirent.name)
         if (dirent.isSymbolicLink()) {
-          // Match native WorkspaceFileSearch: symbolic links are not offered
-          // as candidates and are never traversed.
           signal?.throwIfAborted()
           continue
         }
+        const child = join(dir, dirent.name)
         if (dirent.isDirectory()) {
           if (ignoreDirs.has(dirent.name)) continue
           entries.push({ path: child, relative: displayRelative(root, child), kind: 'directory' })
-          queue.push({
-            path: child,
-            canonical: join(task.canonical, dirent.name),
-            ancestors: childAncestors,
-          })
+          queue.push(child)
           continue
         }
         if (dirent.isFile()) {

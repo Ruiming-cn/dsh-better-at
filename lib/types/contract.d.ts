@@ -1,14 +1,18 @@
 /**
- * dsh-better-at wire contract: types, zod codecs and strict Typert invocation
- * descriptors shared verbatim by the Host manifest and the browser Remote.
+ * dsh-better-at wire contract: types, boundary schemas and strict Typert
+ * invocation descriptors shared verbatim by the Host manifest and the browser
+ * Remote.
  *
  * The `betterAt` namespace exposes two read-only indices:
  * - `listFiles`: bounded workspace tree containing files and directories.
  * - `listSessions`: full DSH session metadata with canonical mentions.
  * No file contents or conversation bodies cross this boundary.
+ *
+ * The schemas are hand-written rather than generated: the Typert strict codec
+ * only consumes `parse()`, and two small shapes do not justify shipping a
+ * general validator into the browser bundle.
  */
-import { z } from 'zod';
-import type { InvocationDescriptor } from '@deepseek-ai/dsh-typert-protocol';
+import type { InvocationDescriptor, TypertSchema } from '@deepseek-ai/dsh-typert-protocol';
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
 /** One indexed workspace entry (a file or a directory), with display paths. */
 export interface BetterAtFileEntry {
@@ -35,46 +39,14 @@ export interface BetterAtSessionIndex {
     readonly entries: readonly BetterAtSessionEntry[];
 }
 /** Wire codec: one agent/session identity. */
-export declare const sessionIdSchema: z.ZodString;
+export declare const sessionIdSchema: TypertSchema<string>;
 /** Wire codec: one workspace entry. */
-export declare const betterAtFileEntrySchema: z.ZodReadonly<z.ZodObject<{
-    path: z.ZodString;
-    relative: z.ZodString;
-    kind: z.ZodEnum<{
-        file: "file";
-        directory: "directory";
-    }>;
-}, z.core.$strip>>;
+export declare const betterAtFileEntrySchema: TypertSchema<BetterAtFileEntry>;
 /** Wire codec: one workspace index snapshot. */
-export declare const betterAtFileIndexSchema: z.ZodReadonly<z.ZodObject<{
-    root: z.ZodString;
-    entries: z.ZodArray<z.ZodReadonly<z.ZodObject<{
-        path: z.ZodString;
-        relative: z.ZodString;
-        kind: z.ZodEnum<{
-            file: "file";
-            directory: "directory";
-        }>;
-    }, z.core.$strip>>>;
-    truncated: z.ZodBoolean;
-}, z.core.$strip>>;
+export declare const betterAtFileIndexSchema: TypertSchema<BetterAtFileIndex>;
 /** Wire codec: one session candidate. */
-export declare const betterAtSessionEntrySchema: z.ZodReadonly<z.ZodObject<{
-    sessionId: z.ZodString;
-    label: z.ZodString;
-    cwd: z.ZodOptional<z.ZodString>;
-    createdAt: z.ZodNumber;
-    mention: z.ZodString;
-}, z.core.$strip>>;
-/** Wire codec: one session index snapshot. */
-export declare const betterAtSessionIndexSchema: z.ZodReadonly<z.ZodObject<{
-    entries: z.ZodArray<z.ZodReadonly<z.ZodObject<{
-        sessionId: z.ZodString;
-        label: z.ZodString;
-        cwd: z.ZodOptional<z.ZodString>;
-        createdAt: z.ZodNumber;
-        mention: z.ZodString;
-    }, z.core.$strip>>>;
-}, z.core.$strip>>;
+export declare const betterAtSessionEntrySchema: TypertSchema<BetterAtSessionEntry>;
+/** Wire codec: one full session index snapshot. */
+export declare const betterAtSessionIndexSchema: TypertSchema<BetterAtSessionIndex>;
 /** Strict invocation descriptors for the `betterAt` Remote namespace. */
 export declare const BETTER_AT_INVOCATIONS: readonly InvocationDescriptor[];

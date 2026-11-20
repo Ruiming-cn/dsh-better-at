@@ -8,19 +8,25 @@ export declare const NS = "better-at";
 export declare const zh: {
     'section.files': string;
     'section.sessions': string;
-    'candidate.file': string;
-    'candidate.folder': string;
-    'candidate.session': string;
     'candidate.noCwd': string;
+    'time.now': string;
+    'time.minutes': string;
+    'time.hours': string;
+    'time.days': string;
+    'time.months': string;
+    'time.years': string;
 };
 /** English dictionary. */
 export declare const en: {
     'section.files': string;
     'section.sessions': string;
-    'candidate.file': string;
-    'candidate.folder': string;
-    'candidate.session': string;
     'candidate.noCwd': string;
+    'time.now': string;
+    'time.minutes': string;
+    'time.hours': string;
+    'time.days': string;
+    'time.months': string;
+    'time.years': string;
 };
 /** The better-at locale key union. */
 export type BetterAtKey = keyof typeof zh;
