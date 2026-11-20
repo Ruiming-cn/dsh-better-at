@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
 
 test('package metadata matches the DSH plugin contract', () => {
-  assert.equal(pkg.version, '0.2.1')
+  assert.equal(pkg.version, '0.3.0')
   assert.equal(pkg.license, 'MIT')
   assert.equal(pkg.type, 'module')
   assert.ok(pkg.main, 'main entry must exist')

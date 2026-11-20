@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Faster @ references",
-    "description": "Preloads the workspace file and DSH session indexes so the @ menu filters and ranks in the browser instead of asking the Host on every keystroke. Files, folders and sessions keep their native mention text, and folders still drill down with Tab. The index is a snapshot: new files can take up to 30 seconds to appear, the session list is refreshed every 5 minutes, and the 10,000-entry cap truncates very large workspaces."
+    "description": "Preloads the workspace file and DSH session indexes so the @ menu filters and ranks in the browser instead of asking the Host on every keystroke, and lets you shape what @ searches in Settings → @ search scope: skip archived sessions, skip sessions idle for N days, skip subagents outside this conversation, and show file paths flat or as a tree. Files, folders and sessions keep their native mention text. The index is a snapshot: new files can take up to 30 seconds to appear, the session list refreshes every 5 minutes, and the 10,000-entry cap truncates very large workspaces."
   }
 }

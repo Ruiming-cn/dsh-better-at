@@ -15,15 +15,15 @@ npm run check
 npm pack
 
 # 3. Tag and create the GitHub release with the tarball asset
-gh release create v0.2.1 \
+gh release create v0.3.0 \
   --repo Ruiming-cn/dsh-better-at \
-  --title "dsh-better-at v0.2.1" \
+  --title "dsh-better-at v0.3.0" \
   --notes "See CHANGELOG.md" \
-  ./dsh-better-at-0.2.1.tgz
+  ./dsh-better-at-0.3.0.tgz
 
 # 4. Verify repository metadata and the asset
 gh repo view Ruiming-cn/dsh-better-at --json description,repositoryTopics
-gh release view v0.2.1 --repo Ruiming-cn/dsh-better-at --json assets
+gh release view v0.3.0 --repo Ruiming-cn/dsh-better-at --json assets
 ```
 
 ## Repository metadata
@@ -35,3 +35,4 @@ Keep the following in sync before each release:
 - `CHANGELOG.md`, plus the `locale/*.json` Plugin Manager copy.
 - The release tarball is the install path storefronts should offer, so re-check
   its download URL after every cut.
+

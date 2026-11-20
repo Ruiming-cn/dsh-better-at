@@ -15,6 +15,8 @@
 import type { CandidateRequest, ClientSessionContext, InputTriggerCandidate } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client';
 import type { BetterAtKey } from './locales.ts';
+import { type SessionSummaryLike } from './filters.ts';
+import type { SettingsStore } from './settings.ts';
 /** The generated mounted betterAt namespace face. */
 export type BetterAtRemoteFace = ClientRemote['betterAt'];
 /** Everything the source factory needs from the browser wiring layer. */
@@ -23,6 +25,10 @@ export interface BetterAtSourceDeps {
     getRemote(): BetterAtRemoteFace | undefined;
     /** Locale translation function for candidate rows. */
     t(key: BetterAtKey, params?: Record<string, string | number>): string;
+    /** Browser-local search scope (archived, stale, subagent and display rules). */
+    settings: SettingsStore;
+    /** Client session summaries by id; absent rows fall back to the index snapshot. */
+    getSessionSummaries?(): Readonly<Record<string, SessionSummaryLike | undefined>> | undefined;
     /** Monotonic clock for cache freshness (default Date.now). */
     now?(): number;
 }

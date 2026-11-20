@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0 - 2026-11-20
+
+- Added the custom `@` search scope, editable in **Settings → @ search scope**:
+  skip archived sessions, skip sessions idle for N days (default 7, `0` disables,
+  running sessions always kept), skip subagent sessions outside the current
+  conversation, and switch file paths between flat and tree display.
+- The Host session index now carries the workspace registry's archived state and
+  each session's subagent origin/parent, so the browser can apply the scope
+  without another Host round trip.
+- The scope is browser-local (validated on read), so a rule change affects the
+  next `@` immediately and survives reloads.
+- The flat/tree choice is a presentation rule: tree indents rows by workspace
+  depth and shows the full relative path; picking still inserts the native
+  mention.
+
 ## 0.2.1 - 2026-11-20
 
 - Verified against DeepSeek Harness 0.2.2-rc.5 and updated the dev dependency

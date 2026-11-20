@@ -1,5 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
-/** Required services: trigger registry, Remote mount, session scope, connection reset, locale. */
+/** Required services: trigger registry, Remote mount, connection, locale, sessions, slots. */
 export declare const inject: string[];
 /**
  * Compose the fast @ source wrapper.

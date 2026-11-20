@@ -12,8 +12,15 @@
 workspace file/folder references and DSH session references — while removing the
 per-keystroke host round trips that make the `@` menu feel slow.
 
+> **Tired of `@` dumping everything at once? With dsh-better-at, you decide
+> where `@` searches.**
+
 ## Features
 
+- 🎯 **Custom `@` search scope**: skip archived sessions, skip sessions idle for
+  N days (default 7), skip subagents outside the current conversation, and
+  present file paths flat or as an indented tree. Every rule is enforced in the
+  browser, so a scope change applies to the next `@` without a rescan.
 - ⚡ **Fast first open**: session-scope warm-up preloads the workspace file index
   and the DSH session index before the first `@`.
 - ⚡ **Local keystroke filtering**: after the initial load, typing filters and
@@ -76,7 +83,7 @@ DSH Host betterAt Remote
 From the prebuilt release tarball (no build step):
 
 ```powershell
-dsh plugin --profile web add https://github.com/Ruiming-cn/dsh-better-at/releases/download/v0.2.1/dsh-better-at-0.2.1.tgz
+dsh plugin --profile web add https://github.com/Ruiming-cn/dsh-better-at/releases/download/v0.3.0/dsh-better-at-0.3.0.tgz
 ```
 
 From GitHub source (`lib/` is committed, so no build runs on install):
@@ -107,9 +114,26 @@ After selection, the native composer behavior is preserved: files become atomic
 file references (or editable directory paths), and DSH sessions become native
 session references.
 
-## Configuration
+## Search scope
 
-The Host plugin accepts two settings through the profile patch:
+Open **Settings → @ search scope** to shape what `@` searches. The scope is
+stored in the browser, applies to the next `@`, and never triggers a workspace
+rescan.
+
+| Rule | Default | Behavior |
+| --- | --- | --- |
+| Skip archived sessions | on | Sessions archived in the workspace registry are not offered. Archiving itself is untouched. |
+| Skip sessions idle for N days | `7` | A session with no durable activity in the window is dropped. `0` disables the rule; a running session is always kept. |
+| Skip subagents outside this conversation | on | Subagent sessions descended from the current conversation stay listed; unrelated subagent sessions are hidden. |
+| File path display | flat | `flat` shows the name plus its parent directory; `tree` indents by workspace depth and shows the full relative path. |
+
+The Host index keeps the facts (archived state, subagent lineage); the browser
+applies the rules, which is why a toggle costs no Host round trip. **Reset to
+defaults** restores the table above.
+
+## Host configuration
+
+The Host plugin accepts two indexing settings through the profile patch:
 
 ```yaml
 # ~/.dsh/profiles/web/cordis.patch.yml

@@ -36,6 +36,12 @@ export interface BetterAtSessionEntry {
   readonly cwd?: string
   readonly createdAt: number
   readonly mention: string
+  /** Durable coarse origin: present only for a session created as a subagent child. */
+  readonly origin?: 'subagent'
+  /** Direct creator of a subagent session; absent for top-level sessions and forks. */
+  readonly parentSession?: SessionId
+  /** Whether the workspace registry currently archives this session. */
+  readonly archived: boolean
 }
 
 /** One full session index snapshot returned to the browser picker. */
@@ -110,12 +116,22 @@ export const betterAtSessionEntrySchema: TypertSchema<BetterAtSessionEntry> = {
     if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) reject(createdAt, 'needs a numeric createdAt')
     const cwd = record.cwd
     if (cwd !== undefined && typeof cwd !== 'string') reject(cwd, 'has a non-string cwd')
+    const origin = record.origin
+    if (origin !== undefined && origin !== 'subagent') reject(origin, 'has an unknown session origin')
+    const parentSession = record.parentSession
+    if (parentSession !== undefined && (typeof parentSession !== 'string' || parentSession.length === 0)) {
+      reject(parentSession, 'has an invalid parentSession')
+    }
+    if (typeof record.archived !== 'boolean') reject(record.archived, 'needs a boolean archived flag')
     return {
       sessionId: readString(record, 'sessionId', 'a session entry') as SessionId,
       label: typeof record.label === 'string' ? record.label : reject(record.label, 'has a non-string label'),
       ...cwd === undefined ? {} : { cwd },
       createdAt,
       mention: readString(record, 'mention', 'a session entry'),
+      ...origin === undefined ? {} : { origin },
+      ...parentSession === undefined ? {} : { parentSession: parentSession as SessionId },
+      archived: record.archived,
     }
   },
 }

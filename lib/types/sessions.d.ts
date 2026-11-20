@@ -5,6 +5,11 @@
  * folds labels in one batch. Mention strings are generated on the Host because
  * the canonical URI codec uses Node Buffer — it must never cross into the
  * browser bundle.
+ *
+ * The index carries what the browser needs to apply the user's search scope:
+ * the durable origin/parent of a subagent session and the workspace registry's
+ * archived set. Filtering itself stays in the browser so a scope change never
+ * costs a Host round trip.
  */
 import type { Context } from '@deepseek-ai/cordis';
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
@@ -16,6 +21,8 @@ export interface SessionQueryLike {
             id: SessionId;
             cwd?: string;
             createdAt: number;
+            parentSession?: SessionId;
+            origin?: 'subagent';
         };
     }>>;
     readTitleSnapshots(ids: readonly string[], signal?: AbortSignal): Promise<Array<{
@@ -26,6 +33,10 @@ export interface SessionQueryLike {
             };
         };
     }>>;
+}
+/** Minimal structural face of `workspaceRegistry` used by this module (tests stub). */
+export interface WorkspaceRegistryLike {
+    readonly archivedSessionIds: readonly SessionId[];
 }
 /**
  * Build the full session candidate index for one Host process.

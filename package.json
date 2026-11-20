@@ -1,7 +1,7 @@
 {
   "name": "dsh-better-at",
-  "version": "0.2.1",
-  "description": "Caches DSH Web file and session reference indexes for local @ filtering while preserving native mention insertion.",
+  "version": "0.3.0",
+  "description": "Custom @ search scope for the DSH Web composer: cached file/session indexes, archived and stale-session filters, subagent scoping and flat/tree path display, with native mention insertion preserved.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -19,6 +19,7 @@
     "dsh-plugin",
     "deepseek-harness",
     "at-menu",
+    "search-scope",
     "file-reference",
     "session-reference",
     "web-ui",
@@ -70,8 +71,10 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller",
         "@deepseek-ai/dsh-client-connection",
         "@deepseek-ai/dsh-client-ui-input-trigger",
+        "@deepseek-ai/dsh-client-ui-slots",
         "@deepseek-ai/dsh-client-locale"
       ]
     }
@@ -94,21 +97,49 @@
     "@deepseek-ai/dsh-session": ">=0.2.2-rc.1 <0.3.0",
     "@deepseek-ai/dsh-session-query": ">=0.2.2-rc.1 <0.3.0",
     "@deepseek-ai/dsh-typert-protocol": ">=0.2.2-rc.1 <0.3.0",
-    "@deepseek-ai/dsh-typert-registry": ">=0.2.2-rc.1 <0.3.0"
+    "@deepseek-ai/dsh-typert-registry": ">=0.2.2-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-api-session-controller": ">=0.2.2-rc.1 <0.3.0"
   },
   "peerDependenciesMeta": {
-    "@deepseek-ai/cordis": { "optional": true },
-    "@deepseek-ai/dsh-agent": { "optional": true },
-    "@deepseek-ai/dsh-session": { "optional": true },
-    "@deepseek-ai/dsh-session-query": { "optional": true },
-    "@deepseek-ai/dsh-typert-protocol": { "optional": true },
-    "@deepseek-ai/dsh-typert-registry": { "optional": true },
-    "@deepseek-ai/dsh-api-remotes": { "optional": true },
-    "@deepseek-ai/dsh-client-ui-input-trigger": { "optional": true },
-    "@deepseek-ai/dsh-client-ui-slots": { "optional": true },
-    "@deepseek-ai/dsh-client-locale": { "optional": true },
-    "@deepseek-ai/dsh-client-connection": { "optional": true },
-    "@deepseek-ai/dsh-file-reference": { "optional": true }
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-agent": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-session": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-session-query": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-typert-protocol": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-typert-registry": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-api-remotes": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-input-trigger": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-slots": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-locale": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-connection": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-file-reference": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-api-session-controller": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.0"
@@ -128,6 +159,9 @@
     "@deepseek-ai/dsh-typert-registry": "0.2.2-rc.5",
     "@types/node": "^24.0.0",
     "esbuild": "^0.25.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "@deepseek-ai/dsh-api-session-controller": "0.2.2-rc.5",
+    "react": "^19.2.0",
+    "@types/react": "^19.2.0"
   }
 }

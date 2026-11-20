@@ -1,11 +1,18 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createBetterAtSource, formatAge, type BetterAtRemoteFace } from '../src/client/source.ts'
+import { createSettingsStore, type BetterAtSettings } from '../src/client/settings.ts'
 import type { BetterAtKey } from '../src/client/locales.ts'
 import type { BetterAtFileIndex, BetterAtSessionIndex } from '../src/contract.ts'
 
 const t = (key: BetterAtKey, params?: Record<string, string | number>): string =>
   params === undefined ? key : `${key}:${JSON.stringify(params)}`
+
+function settings(patch: Partial<BetterAtSettings> = {}) {
+  const store = createSettingsStore(undefined)
+  store.update(patch)
+  return store
+}
 
 function fakeRemote(fileCalls = { count: 0 }, sessionCalls = { count: 0 }): BetterAtRemoteFace {
   return {
@@ -20,14 +27,16 @@ function fakeRemote(fileCalls = { count: 0 }, sessionCalls = { count: 0 }): Bett
     async listSessions() {
       sessionCalls.count += 1
       return { ok: true, value: { entries: [
-        { sessionId: 's1', label: 'One', cwd: '/work', createdAt: Date.now(), mention: '@[One](dsh-session:czE)' },
+        { sessionId: 's1', label: 'One', cwd: '/work', createdAt: Date.now(), mention: '@[One](dsh-session:czE)', archived: false },
+        { sessionId: 's2', label: 'Gone', cwd: '/work', createdAt: Date.now(), mention: '@[Gone](dsh-session:czI)', archived: true },
+        { sessionId: 's3', label: 'Other child', cwd: '/elsewhere', createdAt: Date.now(), mention: '@[Other](dsh-session:czM)', archived: false, origin: 'subagent', parentSession: 'other' },
       ] } satisfies BetterAtSessionIndex }
     },
   }
 }
 
 test('createBetterAtSource: returns native-shaped candidate rows', async () => {
-  const source = createBetterAtSource({ getRemote: () => fakeRemote(), t })
+  const source = createBetterAtSource({ getRemote: () => fakeRemote(), t, settings: settings() })
   const rows = await source.candidates(
     { sessionId: 'sess' },
     { query: '', quoted: false, position: 'leading', signal: new AbortController().signal },
@@ -47,7 +56,7 @@ test('createBetterAtSource: returns native-shaped candidate rows', async () => {
 })
 
 test('createBetterAtSource: folder rows advertise a drill and a bare name', async () => {
-  const source = createBetterAtSource({ getRemote: () => fakeRemote(), t })
+  const source = createBetterAtSource({ getRemote: () => fakeRemote(), t, settings: settings() })
   const rows = await source.candidates(
     { sessionId: 'sess' },
     { query: '', quoted: false, position: 'leading', signal: new AbortController().signal },
@@ -64,7 +73,7 @@ test('createBetterAtSource: folder rows advertise a drill and a bare name', asyn
 })
 
 test('createBetterAtSource: nested rows name their parent directory', async () => {
-  const source = createBetterAtSource({ getRemote: () => fakeRemote(), t })
+  const source = createBetterAtSource({ getRemote: () => fakeRemote(), t, settings: settings() })
   const rows = await source.candidates(
     { sessionId: 'sess' },
     { query: 'src/', quoted: false, position: 'leading', signal: new AbortController().signal },
@@ -74,11 +83,66 @@ test('createBetterAtSource: nested rows name their parent directory', async () =
   assert.equal(nested!.description, 'src')
 })
 
+test('createBetterAtSource: tree display indents by workspace depth', async () => {
+  const source = createBetterAtSource({
+    getRemote: () => fakeRemote(),
+    t,
+    settings: settings({ fileDisplay: 'tree' }),
+  })
+  const rows = await source.candidates(
+    { sessionId: 'sess' },
+    { query: 'src/', quoted: false, position: 'leading', signal: new AbortController().signal },
+  )
+  const nested = rows.find(row => row.name.trim() === 'index.ts')
+  assert.ok(nested)
+  assert.equal(nested!.name, '  index.ts')
+  assert.equal(nested!.description, 'src/index.ts')
+})
+
+test('createBetterAtSource: applies the archived and foreign-subagent scope', async () => {
+  const source = createBetterAtSource({ getRemote: () => fakeRemote(), t, settings: settings() })
+  const rows = await source.candidates(
+    { sessionId: 'sess' },
+    { query: '', quoted: false, position: 'leading', signal: new AbortController().signal },
+  )
+  const sessions = rows.filter(row => row.value?.includes('"kind":"session"'))
+  const names = sessions.map(row => row.name).sort()
+  assert.deepEqual(names, ['One'])
+})
+
+test('createBetterAtSource: keeps archived and foreign rows when the rules are off', async () => {
+  const source = createBetterAtSource({
+    getRemote: () => fakeRemote(),
+    t,
+    settings: settings({ hideArchivedSessions: false, hideForeignSubagents: false }),
+  })
+  const rows = await source.candidates(
+    { sessionId: 'sess' },
+    { query: '', quoted: false, position: 'leading', signal: new AbortController().signal },
+  )
+  const names = rows.filter(row => row.value?.includes('"kind":"session"')).map(row => row.name).sort()
+  assert.deepEqual(names, ['Gone', 'One', 'Other child'])
+})
+
+test('createBetterAtSource: the client session summary feeds the idle rule', async () => {
+  const source = createBetterAtSource({
+    getRemote: () => fakeRemote(),
+    t,
+    settings: settings({ staleSessionDays: 7 }),
+    getSessionSummaries: () => ({ s1: { updatedAt: Date.now() - 30 * 86_400_000 } }),
+  })
+  const rows = await source.candidates(
+    { sessionId: 'sess' },
+    { query: '', quoted: false, position: 'leading', signal: new AbortController().signal },
+  )
+  assert.ok(!rows.some(row => row.value?.includes('"kind":"session"')))
+})
+
 test('createBetterAtSource: caches file index per session and session index globally', async () => {
   const fileCalls = { count: 0 }
   const sessionCalls = { count: 0 }
   const remote = fakeRemote(fileCalls, sessionCalls)
-  const source = createBetterAtSource({ getRemote: () => remote, t })
+  const source = createBetterAtSource({ getRemote: () => remote, t, settings: settings() })
   const signal = new AbortController().signal
   await source.candidates({ sessionId: 'sess' }, { query: '', quoted: false, position: 'leading', signal })
   await source.candidates({ sessionId: 'sess' }, { query: '', quoted: false, position: 'leading', signal })
@@ -87,7 +151,7 @@ test('createBetterAtSource: caches file index per session and session index glob
 })
 
 test('createBetterAtSource: excludes the current session from session candidates', async () => {
-  const source = createBetterAtSource({ getRemote: () => fakeRemote(), t })
+  const source = createBetterAtSource({ getRemote: () => fakeRemote(), t, settings: settings() })
   const rows = await source.candidates(
     { sessionId: 's1' },
     { query: '', quoted: false, position: 'leading', signal: new AbortController().signal },
@@ -99,7 +163,7 @@ test('createBetterAtSource: prewarm loads both indexes without throwing', async 
   const fileCalls = { count: 0 }
   const sessionCalls = { count: 0 }
   const remote = fakeRemote(fileCalls, sessionCalls)
-  const source = createBetterAtSource({ getRemote: () => remote, t })
+  const source = createBetterAtSource({ getRemote: () => remote, t, settings: settings() })
   source.prewarm({ sessionId: 'sess' })
   await new Promise(resolve => setTimeout(resolve, 10))
   assert.equal(fileCalls.count, 1)

@@ -15,6 +15,19 @@ export declare const zh: {
     'time.days': string;
     'time.months': string;
     'time.years': string;
+    'settings.title': string;
+    'settings.description': string;
+    'settings.archived': string;
+    'settings.archivedHint': string;
+    'settings.staleDays': string;
+    'settings.staleDaysHint': string;
+    'settings.foreignSubagents': string;
+    'settings.foreignSubagentsHint': string;
+    'settings.fileDisplay': string;
+    'settings.fileDisplayHint': string;
+    'settings.flat': string;
+    'settings.tree': string;
+    'settings.reset': string;
 };
 /** English dictionary. */
 export declare const en: {
@@ -27,6 +40,19 @@ export declare const en: {
     'time.days': string;
     'time.months': string;
     'time.years': string;
+    'settings.title': string;
+    'settings.description': string;
+    'settings.archived': string;
+    'settings.archivedHint': string;
+    'settings.staleDays': string;
+    'settings.staleDaysHint': string;
+    'settings.foreignSubagents': string;
+    'settings.foreignSubagentsHint': string;
+    'settings.fileDisplay': string;
+    'settings.fileDisplayHint': string;
+    'settings.flat': string;
+    'settings.tree': string;
+    'settings.reset': string;
 };
 /** The better-at locale key union. */
 export type BetterAtKey = keyof typeof zh;

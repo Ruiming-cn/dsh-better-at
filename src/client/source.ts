@@ -26,6 +26,8 @@ import type {
   BetterAtSessionIndex,
 } from '../contract.ts'
 import type { BetterAtKey } from './locales.ts'
+import { scopeSessions, type SessionSummaryLike } from './filters.ts'
+import type { BetterAtSettings, SettingsStore } from './settings.ts'
 import {
   MAX_FILE_CANDIDATES,
   MAX_SESSION_CANDIDATES,
@@ -45,6 +47,10 @@ export interface BetterAtSourceDeps {
   getRemote(): BetterAtRemoteFace | undefined
   /** Locale translation function for candidate rows. */
   t(key: BetterAtKey, params?: Record<string, string | number>): string
+  /** Browser-local search scope (archived, stale, subagent and display rules). */
+  settings: SettingsStore
+  /** Client session summaries by id; absent rows fall back to the index snapshot. */
+  getSessionSummaries?(): Readonly<Record<string, SessionSummaryLike | undefined>> | undefined
   /** Monotonic clock for cache freshness (default Date.now). */
   now?(): number
 }
@@ -176,12 +182,18 @@ export function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource {
     ])
     if (req.signal.aborted) return []
     const at = now()
+    const scope = deps.settings.get()
     const fileRows = rankFiles(snapshot.files, req.query, MAX_FILE_CANDIDATES)
-      .flatMap(entry => fileRow(entry, req.quoted === true, deps.t))
+      .flatMap(entry => fileRow(entry, req.quoted === true, scope, deps.t))
     const sessionRows = req.quoted === true
       ? []
       : rankSessions(
-        sessionIndex.entries.filter(entry => entry.sessionId !== session.sessionId),
+        scopeSessions(sessionIndex.entries, {
+          settings: scope,
+          now: at,
+          currentSessionId: session.sessionId,
+          summaries: deps.getSessionSummaries?.(),
+        }),
         req.query,
         snapshot.index.root,
         MAX_SESSION_CANDIDATES,
@@ -212,13 +224,17 @@ export function createBetterAtSource(deps: BetterAtSourceDeps): BetterAtSource {
 function fileRow(
   file: PreparedFile,
   preserveQuote: boolean,
+  settings: BetterAtSettings,
   t: (key: BetterAtKey, params?: Record<string, string | number>) => string,
 ): readonly InputTriggerCandidate[] {
   const mention = formatFileMention(file.entry.relative, file.entry.kind, preserveQuote)
   if (mention === undefined) return []
+  const name = file.isDirectory ? `${file.name}/` : file.name
+  const tree = settings.fileDisplay === 'tree'
+  const depth = tree ? file.entry.relative.split('/').length - 1 : 0
   return [{
-    name: file.isDirectory ? `${file.name}/` : file.name,
-    ...(file.parent === '' ? {} : { description: file.parent }),
+    name: tree ? `${'  '.repeat(depth)}${name}` : name,
+    ...(file.parent === '' ? {} : { description: tree ? file.entry.relative : file.parent }),
     icon: file.isDirectory ? 'folder' : 'file',
     section: t('section.files'),
     ...(file.isDirectory ? { drill: true } : {}),

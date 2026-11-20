@@ -33,6 +33,12 @@ export interface BetterAtSessionEntry {
     readonly cwd?: string;
     readonly createdAt: number;
     readonly mention: string;
+    /** Durable coarse origin: present only for a session created as a subagent child. */
+    readonly origin?: 'subagent';
+    /** Direct creator of a subagent session; absent for top-level sessions and forks. */
+    readonly parentSession?: SessionId;
+    /** Whether the workspace registry currently archives this session. */
+    readonly archived: boolean;
 }
 /** One full session index snapshot returned to the browser picker. */
 export interface BetterAtSessionIndex {
